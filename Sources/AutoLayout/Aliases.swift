@@ -10,6 +10,7 @@ import class AppKit.NSView
 
 public typealias AutoLayoutConstraint = NSLayoutConstraint
 public typealias AutoLayoutPriority = NSLayoutConstraint.Priority
+public typealias AutoLayoutRelation = NSLayoutConstraint.Relation
 public typealias AutoLayoutDimension = NSLayoutDimension
 public typealias AutoLayoutGuide = NSLayoutGuide
 public typealias AutoLayoutAnchor = NSLayoutAnchor
@@ -30,6 +31,7 @@ import class UIKit.UIView
 
 public typealias AutoLayoutAnchor = NSLayoutAnchor
 public typealias AutoLayoutConstraint = NSLayoutConstraint
+public typealias AutoLayoutRelation = NSLayoutConstraint.Relation
 public typealias AutoLayoutDimension = NSLayoutDimension
 public typealias AutoLayoutXAxisAnchor = NSLayoutXAxisAnchor
 public typealias AutoLayoutYAxisAnchor = NSLayoutYAxisAnchor

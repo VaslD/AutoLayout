@@ -3,8 +3,10 @@ import CoreGraphics
 public extension AutoLayoutElement {
     /// 将当前视图通过边距约束固定在容器中。
     ///
-    /// 如需启用约束但不保留边距，必须传递 `0`；如果不希望启用对应侧边距，传递
-    /// `nil`。此函数不会删除视图上现有约束或修改其优先级，滥用可能导致无法同时满足约束。
+    /// 如需启用约束但不保留边距，必须传递 `0`；如果不希望启用对应侧边距，传递 `nil`。
+    ///
+    /// 此方法能自动修改上次通过任意 autoLayout() 方法设置的约束，前提是这些约束没有手动修改过 NSLayoutAnchor
+    /// 或优先级。此函数不会删除视图上现有约束或修改其优先级，滥用可能导致无法同时满足约束。
     ///
     /// - Note:
     /// 请仔细阅读参数说明并对照 UI 设计文档。在绝大多数情况下，视图下方和右侧的边距应该传递负值。
@@ -23,34 +25,67 @@ public extension AutoLayoutElement {
         top: AutoLayoutConstraint?, bottom: AutoLayoutConstraint?,
         leading: AutoLayoutConstraint?, trailing: AutoLayoutConstraint?
     ) {
-        var constraints = [AutoLayoutConstraint]()
         var topConstraint: AutoLayoutConstraint?
         var bottomConstraint: AutoLayoutConstraint?
         var leadingConstraint: AutoLayoutConstraint?
         var trailingConstraint: AutoLayoutConstraint?
+        for constraint in constraints {
+            switch constraint.identifier {
+            case AutoLayoutConstraint.identifier(firstAnchor: self.topAnchor, secondAnchor: view.topAnchor):
+                topConstraint = constraint
+            case AutoLayoutConstraint.identifier(firstAnchor: self.bottomAnchor, secondAnchor: view.bottomAnchor):
+                bottomConstraint = constraint
+            case AutoLayoutConstraint.identifier(firstAnchor: self.leadingAnchor, secondAnchor: view.leadingAnchor):
+                leadingConstraint = constraint
+            case AutoLayoutConstraint.identifier(firstAnchor: self.trailingAnchor, secondAnchor: view.trailingAnchor):
+                trailingConstraint = constraint
+            default:
+                continue
+            }
+        }
 
         if let constant = top {
-            topConstraint = self.topAnchor.constraint(equalTo: view.topAnchor, constant: constant)
-            constraints.append(topConstraint!)
+            if let existing = topConstraint {
+                existing.constant = constant
+            } else {
+                topConstraint = self.topAnchor.constraint(equalTo: view.topAnchor, constant: constant)
+            }
+            topConstraint!.generateIdentifier()
+            topConstraint!.isActive = true
         }
         if let constant = bottom {
-            bottomConstraint = self.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: constant)
-            constraints.append(bottomConstraint!)
+            if let existing = bottomConstraint {
+                existing.constant = constant
+            } else {
+                bottomConstraint = self.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: constant)
+            }
+            bottomConstraint!.generateIdentifier()
+            bottomConstraint!.isActive = true
         }
 
         if let constant = leading {
-            leadingConstraint = self.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: constant)
-            constraints.append(leadingConstraint!)
+            if let existing = leadingConstraint {
+                existing.constant = constant
+            } else {
+                leadingConstraint = self.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: constant)
+            }
+            leadingConstraint!.generateIdentifier()
+            leadingConstraint!.isActive = true
         }
         if let constant = trailing {
-            trailingConstraint = self.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: constant)
-            constraints.append(trailingConstraint!)
+            if let existing = trailingConstraint {
+                existing.constant = constant
+            } else {
+                trailingConstraint = self.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: constant)
+            }
+            trailingConstraint!.generateIdentifier()
+            trailingConstraint!.isActive = true
         }
 
         if let element = self as? AutoLayoutView {
             element.translatesAutoresizingMaskIntoConstraints = false
         }
-        AutoLayoutConstraint.activate(constraints)
+
         return (topConstraint, bottomConstraint, leadingConstraint, trailingConstraint)
     }
 
@@ -278,55 +313,115 @@ public extension AutoLayoutElement {
 public extension AutoLayoutResizable {
     /// 使用约束限制视图的尺寸。
     ///
-    /// 如果不需要启用任一约束，传递 `nil`。
-    ///
-    /// 此函数将设置绝对磅 (point) 尺寸约束，如需设置宽高比约束，使用 ``autoLayout(widthRatio:heightRatio:)``。
+    /// > Note: 此函数已被重命名为 ``autoLayout(fixedHeight:fixedWidth:)``。
     ///
     /// - Parameters:
     ///   - fixingHeight: 绝对高度
     ///   - fixingWidth: 绝对宽度
     /// - Returns: 高度、宽度两个约束
+    @available(*, deprecated, renamed: "autoLayout(fixedHeight:fixedWidth:)")
     @discardableResult func autoLayout(
-        fixingHeight: CGFloat?, fixingWidth: CGFloat?
+        fixingHeight height: CGFloat?, fixingWidth width: CGFloat?
     ) -> (
         height: AutoLayoutConstraint?, width: AutoLayoutConstraint?
     ) {
-        var constraints = [AutoLayoutConstraint]()
-        var height: AutoLayoutConstraint?
-        var width: AutoLayoutConstraint?
+        self.autoLayout(fixedHeight: height, fixedWidth: width)
+    }
 
-        if let heightValue = fixingHeight {
-            height = self.heightAnchor.constraint(equalToConstant: heightValue)
-            constraints.append(height!)
+    /// 使用约束限制视图的尺寸。
+    ///
+    /// 如果不需要启用任一约束，传递 `nil`。
+    ///
+    /// 此函数将设置绝对磅 (point) 尺寸约束，如需设置宽高比约束，使用 ``autoLayout(widthRatio:heightRatio:)``。
+    ///
+    /// - Parameters:
+    ///   - height: 绝对高度
+    ///   - width: 绝对宽度
+    /// - Returns: 高度、宽度两个约束
+    @discardableResult func autoLayout(
+        fixedHeight height: CGFloat?, fixedWidth width: CGFloat?
+    ) -> (
+        height: AutoLayoutConstraint?, width: AutoLayoutConstraint?
+    ) {
+        var heightConstraint: AutoLayoutConstraint?
+        var widthConstraint: AutoLayoutConstraint?
+        for constraint in self.constraints {
+            switch constraint.identifier {
+            case AutoLayoutConstraint.identifier(firstAnchor: self.heightAnchor):
+                heightConstraint = constraint
+            case AutoLayoutConstraint.identifier(firstAnchor: self.widthAnchor):
+                widthConstraint = constraint
+            case AutoLayoutConstraint.identifier(firstAnchor: self.widthAnchor, secondAnchor: self.heightAnchor):
+                constraint.isActive = false
+            default:
+                continue
+            }
         }
-        if let widthValue = fixingWidth {
-            width = self.widthAnchor.constraint(equalToConstant: widthValue)
-            constraints.append(width!)
+
+        if let constant = height {
+            if let existing = heightConstraint {
+                existing.constant = constant
+            } else {
+                heightConstraint = self.heightAnchor.constraint(equalToConstant: constant)
+            }
+            heightConstraint!.generateIdentifier()
+            heightConstraint!.isActive = true
+        }
+
+        if let constant = width {
+            if let existing = widthConstraint {
+                existing.constant = constant
+            } else {
+                widthConstraint = self.widthAnchor.constraint(equalToConstant: constant)
+            }
+            widthConstraint!.generateIdentifier()
+            widthConstraint!.isActive = true
         }
 
         if let element = self as? AutoLayoutView {
             element.translatesAutoresizingMaskIntoConstraints = false
         }
-        AutoLayoutConstraint.activate(constraints)
-        return (height, width)
+
+        return (heightConstraint, widthConstraint)
     }
 
     /// 使用约束限制视图的比例。
     ///
     /// 如果不需要启用任一约束，传递 `nil`。
     ///
-    /// 此函数将设置允许缩放的比例尺寸，如需设置绝对尺寸，使用 ``autoLayout(fixingHeight:fixingWidth:)``。
+    /// 此函数将设置允许缩放的比例尺寸，如需设置绝对尺寸，使用 ``autoLayout(fixedHeight:fixedWidth:)``。
     ///
     /// - Parameters:
     ///   - widthRatio: 宽度比值；例如 16:9 的视频中，宽度比值为 16
     ///   - heightRatio: 高度比值；例如 16:9 的视频中，高度比值为 9
     /// - Returns: 计算后的比例约束
     @discardableResult func autoLayout(widthRatio: CGFloat, heightRatio: CGFloat) -> AutoLayoutConstraint {
-        let constraint = self.widthAnchor.constraint(equalTo: self.heightAnchor, multiplier: widthRatio / heightRatio)
+        var ratioConstraint: AutoLayoutConstraint?
+        for constraint in self.constraints {
+            switch constraint.identifier {
+            case AutoLayoutConstraint.identifier(firstAnchor: self.heightAnchor),
+                 AutoLayoutConstraint.identifier(firstAnchor: self.widthAnchor):
+                constraint.isActive = false
+            case AutoLayoutConstraint.identifier(firstAnchor: self.widthAnchor, secondAnchor: self.heightAnchor):
+                ratioConstraint = constraint
+            default:
+                continue
+            }
+        }
+
+        if let existing = ratioConstraint {
+            self.removeConstraint(existing)
+        }
+
+        ratioConstraint = self.widthAnchor.constraint(equalTo: self.heightAnchor,
+                                                      multiplier: widthRatio / heightRatio)
+        ratioConstraint!.generateIdentifier()
+        ratioConstraint!.isActive = true
+
         if let element = self as? AutoLayoutView {
             element.translatesAutoresizingMaskIntoConstraints = false
         }
-        constraint.isActive = true
-        return constraint
+
+        return ratioConstraint!
     }
 }
