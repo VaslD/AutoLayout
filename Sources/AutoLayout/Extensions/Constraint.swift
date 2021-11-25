@@ -1,6 +1,6 @@
 import os
 
-public extension AutoLayoutConstraint {
+public extension AL.Constraint {
     /// 启用约束并返回已启用的约束。适合函数式编程。
     @discardableResult func activated() -> Self {
         self.isActive = true
@@ -21,10 +21,19 @@ public extension AutoLayoutConstraint {
     ///
     /// - Parameter priority: 约束优先级，大于 0 且小于 `.required`
     /// - Returns: 设置后的约束
-    @discardableResult func settingPriority(_ priority: AutoLayoutPriority) -> Self {
-        guard priority.rawValue > 0, priority < .required else {
+    @discardableResult func settingPriority(_ priority: AL.Priority) -> Self {
+        guard priority.rawValue > 0 else {
 #if DEBUG
-            print("不能为约束指定小于或等于 0 的优先级。不能通过调整优先级将可选约束设置为必须约束。")
+            print("不能为约束指定小于或等于 0 的优先级。")
+            // 触发调试器断点
+            raise(SIGINT)
+#endif
+            return self
+        }
+
+        guard priority < .required, self.priority != .required else {
+#if DEBUG
+            print("不能通过调整优先级将可选约束设置为必须约束，反之亦然。")
             // 触发调试器断点
             raise(SIGINT)
 #endif
@@ -36,7 +45,7 @@ public extension AutoLayoutConstraint {
     }
 }
 
-public extension Sequence where Element: AutoLayoutConstraint {
+public extension Sequence where Element: AL.Constraint {
     /// 启用所有约束并返回约束数组。适合函数式编程。
     @discardableResult func activated() -> Self {
         self.forEach { $0.isActive = true }
@@ -50,11 +59,11 @@ public extension Sequence where Element: AutoLayoutConstraint {
     }
 }
 
-public extension Array where Element: AutoLayoutConstraint {
+public extension Array where Element: AL.Constraint {
     /// 将所有约束添加到视图并返回约束数组。适合函数式编程。
     ///
     /// - Parameter view: 管理约束的父视图
-    @discardableResult func added(to view: AutoLayoutView) -> Self {
+    @discardableResult func added(to view: AL.View) -> Self {
         view.addConstraints(self)
         return self
     }

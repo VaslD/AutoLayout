@@ -1,11 +1,11 @@
-// MARK: - AutoLayoutView + AutoLayoutCompatible
+// MARK: - AL.View + AutoLayoutCompatible
 
-extension AutoLayoutView: AutoLayoutCompatible {}
+extension AL.View: AutoLayoutCompatible {}
 
-// MARK: - AutoLayoutView + AutoLayoutElement
+// MARK: - AL.View + AutoLayoutElement
 
-extension AutoLayoutView: AutoLayoutElement {}
+extension AL.View: AutoLayoutElement {}
 
-// MARK: - AutoLayoutView + AutoLayoutResizable
+// MARK: - AL.View + AutoLayoutResizable
 
-extension AutoLayoutView: AutoLayoutResizable {}
+extension AL.View: AutoLayoutResizable {}
